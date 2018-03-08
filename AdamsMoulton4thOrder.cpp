@@ -1,149 +1,135 @@
-/**
-* Adams-Moulton 4th order
-* Runge-Kutta 4th order for first 3 values
-* Equation -- Y + sqrt(pow(X,2) + pow(X,2)) - XY' = 0
-* Cauchy -- Y(Xo) = -0.5
-* Limits -- [0.0 ; 1.0]
-* Solution -- Y(X) = (pow(x,2) - 1) / 2
-*/
-
-/**
-* Possible testing equation system:
-* y1 = sinx;
-* y2 = cosx;
-* ----------
-* y1' = cosx = y2
-* y2' = -sinx = -y1;
-*/
-
-#include <iostream>
-#include <cstdlib>
-#include <cmath>
-#include <iomanip>
-
 #include "Header.h"
 
-void Output(double **yApproximate, double **yAnalytical, double *xk, int neq, int nOutIter);
+#include <iostream>
 
-int main(void)
+double AdamsMoulton(int neq, double Xk, double Xk1, double h, double *y, double *yDerivative)
 {
-	// limits of an interval
-	double a = pow(10, -10);
-	double b = 1.0;
 
-	constexpr int neq = 1; // number of equations
+	double x;
+	double finalValue;
 
-	// integrational steps for different accuracy of calculations
-	constexpr double h1 = 0.2;			// h1 = 1/5
-	constexpr double h2 = h1 / 5.0;		// h2 = 1/25
-	constexpr double h3 = h1 / 25.0;	// h3 = 1/125
-	constexpr double h = h3;
+	// coefficients
+	double *k0py = new double[neq];
+	double *k1 = new double[neq];
+	double *k2 = new double[neq];
+	double *k3 = new double[neq];
+	double *k4 = new double[neq];
 
-	// output preparation
-	double outputStep = 0.1; // bigger step for output purpose
+	int numOfIterations = (int)((Xk1 - Xk) / h); // Xk1 - Xk >> h --> nt is quite big
+	if (numOfIterations < 1) numOfIterations = 1; // check to avoid division by zero
+	h = (Xk1 - Xk) / numOfIterations; // make h more precise
 
-							 // correction (not a must-have)
-	int nOutIter = (int)((b - a) / outputStep); // number of output iterations
-	outputStep = (b - a) / nOutIter;
-
-	// arrays to store OUTPUT values
-	// TODO remake the whole idea to use these arrays w/o using array y (and maybe yp)
-	double **yApproximate = new double*[neq];
-	double **yAnalytical = new double*[neq];
-	for (int i = 0; i < neq; ++i)
+	// temporary array of values inside algorithm function
+	double **Yarray = new double*[numOfIterations + 1];
+	for (int i = 0; i < numOfIterations + 1; ++i)
 	{
-		yApproximate[i] = new double[nOutIter + 1];
-		yAnalytical[i] = new double[nOutIter + 1];
+		Yarray[i] = new double[neq];
 	}
-	// array to store arguments
-	double *xk = new double[32];
 
-	// array to store CALCULATED values
-	double *y = new double[neq];
-
-	// Cauchy condition
-	y[0] = -0.5; // TODO get rid of when remaking the whole idea
-	yApproximate[0][0] = -0.5;
-
-	// function derivative
-	double *yDerivative = new double[neq];
-
-	for (int it = 0; it < nOutIter; it++)
+	/* RUNGE KUTTA 4th ORDER */
+	int it = 1;
+	for (;/* it <= 3 && */it <= numOfIterations; it++)
 	{
-		// [Xki; Xki+1] -- intervals we iterate over [from a to b]
-		double Xk = a + outputStep * (it);
-		double Xk1 = a + outputStep * (it + 1);
-		xk[it + 1] = Xk;
+		double a = Xk + (it - 1) * h; // left side (reserved, unlike x)
 
-		for (int i = 0; i < neq; i++)
+		if (it == 1)
 		{
-			yApproximate[i][it + 1] = RungeKutta(neq, Xk, Xk1, h, y, yDerivative);
-			y[i] = yApproximate[0][it + 1];
-
-			yAnalytical[i][it] = solution(neq, Xk);
+			for (int ieq = 0; ieq < neq; ieq++)
+			{
+				k0py[ieq] = y[ieq]; // make copies of an array of initial values
+				Yarray[it][ieq] = y[ieq];
+			}
+			function(neq, a, y, yDerivative); // calculate function Y' = F(Xk, Yk)
+		}
+		else
+		{
+			for (int ieq = 0; ieq < neq; ieq++)
+			{
+				k0py[ieq] = Yarray[it - 1][ieq]; // make copies of an array of previous values
+				Yarray[it][ieq] = k0py[ieq];
+			}
+			function(neq, a, Yarray[it - 1], yDerivative); // calculate function Y' = F(Xk, Yk)
+		}
+		
+		for (int ieq = 0; ieq < neq; ieq++)
+		{
+			k1[ieq] = h * yDerivative[ieq];
+			Yarray[it][ieq] = k0py[ieq] + k1[ieq] / 2.0; // set next Yi for next Ki
+		}
+		
+		x = a + h / 2.0; // set next Xi for next Ki
+		function(neq, x, Yarray[it], yDerivative);
+		
+		for (int ieq = 0; ieq < neq; ieq++)
+		{
+			k2[ieq] = h * yDerivative[ieq];
+			Yarray[it][ieq] = k0py[ieq] + k2[ieq] / 2.0;
 		}
 
-	}
-
-	
-	// BASHFORTH TEST
-
-
-
-	//
-
-
-	Output(yApproximate, yAnalytical, xk, neq, nOutIter);
-
-	std::cin.get();
-	for (int i = 0; i < neq; i++)
-	{
-		delete[] yApproximate[i];
-		delete[] yAnalytical[i];
-	}
-	delete[] yApproximate;
-	delete[] yAnalytical;
-	delete[] xk;
-	delete[] y;
-	delete[] yDerivative;
-
-	return 0;
-}
-
-
-void Output(double **yApproximate, double **yAnalytical, double *xk, int neq, int nOutIter)
-{
-	std::cout << std::setprecision(12);
-	// header
-	std::cout << " Xk              ";
-	for (int i = 0; i < neq; i++)
-	{
-		std::cout << " | Y(Xk)           "
-			<< " | Y(X)            " << " | E(x)            "
-			<< " | 100*E(x)/Yk" << std::left << std::endl;
-	}
-	for (int i = 0; i < 19 + 76 * neq; i++) std::cout << "-"; // header line
-	std::cout << std::endl;
-
-	// body
-	for (int j = 0; j < nOutIter; j++)
-	{
-		std::cout << " " << std::setw(16) << xk[j];
-		for (int i = 0; i < neq; i++)
+		x = a + h / 2.0;
+		function(neq, x, Yarray[it], yDerivative);
+		
+		for (int ieq = 0; ieq < neq; ieq++)
 		{
-			std::cout << " | " << std::setw(16) << yApproximate[i][j]
-				<< " | " << std::setw(16) << yAnalytical[i][j] << " | " << std::setw(16) << yAnalytical[i][j] - yApproximate[i][j]
-				<< " | " << std::setw(16) << (yApproximate[i][j] - yAnalytical[i][j]) * 100.0 / yAnalytical[i][j] << std::fixed << std::endl;
+			k3[ieq] = h * yDerivative[ieq];
+			Yarray[it][ieq] = k0py[ieq] + k3[ieq];
+		}
+
+		x = a + h;
+		function(neq, x, Yarray[it], yDerivative);
+
+		for (int ieq = 0; ieq < neq; ieq++)
+		{
+			k4[ieq] = h * yDerivative[ieq];
+		}
+
+		for (int ieq = 0; ieq < neq; ieq++)
+		{
+			Yarray[it][ieq] = k0py[ieq] + 1.0 / 6.0 * (k1[ieq] + 2.0 * k2[ieq] + 2.0 * k3[ieq] + k4[ieq]);
+			finalValue = Yarray[it][ieq];
 		}
 	}
-}
 
-double solution(int neq, double x)
-{
-	return (pow(x, 2) - 1) / 2;
-}
+	/* ADAMS MOULTON 4th ORDER */
+	//for (; it <= numOfIterations; it++)
+	//{
+	//	function(neq, x, Yarray[it], yDerivative);
+	//	
+	//	for (int ieq = 0; ieq < neq; ieq++)
+	//		k1[ieq] = 55.0 * yDerivative[ieq];
 
-void function(int neq, double x, double *y, double *yDerivative)
-{
-	yDerivative[0] = (y[0] + sqrt(pow(x, 2) + pow(y[0], 2))) / x;
+	//	function(neq, x - h, Yarray[it], yDerivative);
+	//	
+	//	for (int ieq = 0; ieq < neq; ieq++)
+	//		k2[ieq] = -59.0 * yDerivative[ieq];
+
+	//	function(neq, x - h * 2.0, Yarray[it - 1], yDerivative);
+	//	
+	//	for (int ieq = 0; ieq < neq; ieq++)
+	//		k3[ieq] = 37.0 * yDerivative[ieq];
+
+	//	function(neq, x - h * 3.0, Yarray[it - 2], yDerivative);
+	//	
+	//	for (int ieq = 0; ieq < neq; ieq++)
+	//		k4[ieq] = -9.0 * yDerivative[ieq];
+
+	//	for (int ieq = 0; ieq < neq; ieq++)
+	//		Yarray[it][neq] = Yarray[it - 1][neq] * h / 24.0 * (k1[0] + k2[0] + k3[0] + k4[0]);
+	//}
+
+
+
+	for (int i = 0; i < numOfIterations + 1; i++)
+	{
+		delete[] Yarray[i];
+	}
+	delete[] Yarray;
+	delete[] k0py;
+	delete[] k1;
+	delete[] k2;
+	delete[] k3;
+	delete[] k4;
+
+	std::cout << "Yfin = " << finalValue << std::endl;
+	return finalValue;
 }
