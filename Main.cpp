@@ -23,15 +23,16 @@
 
 #include "Header.h"
 
-void Output(double **yApproximate, double **yAnalytical, double *xk, int neq, int nOutIter);
 
-
-
-int main(void)
+int main()
 {
 	// limits of an interval
 	double a = pow(10, -10);
 	double b = 1.0;
+	
+	/// NOTE: Tanya
+	//double a = 0.0;
+	//double b = log(2.0);
 
 	constexpr int neq = 1; // number of equations
 
@@ -39,7 +40,6 @@ int main(void)
 	constexpr double h1 = 0.2;			// h1 = 1/5
 	constexpr double h2 = h1 / 5.0;		// h2 = 1/25
 	constexpr double h3 = h1 / 25.0;	// h3 = 1/125
-	constexpr double h = h3;
 
 	// output preparation
 	double outputStep = 0.1; // bigger step for output purpose
@@ -49,7 +49,6 @@ int main(void)
 	outputStep = (b - a) / nOutIter;
 
 	// arrays to store OUTPUT values
-	// TODO remake the whole idea to use these arrays w/o using array y (and maybe yp)
 	double **yApproximate = new double*[nOutIter + 1];
 	double **yAnalytical = new double*[nOutIter + 1];
 	for (int i = 0; i < nOutIter + 1; ++i)
@@ -60,18 +59,17 @@ int main(void)
 	// array to store arguments
 	double *xk = new double[outputStep + 1];
 
-	// array to store CALCULATED values
-	double *y = new double[neq];
-
 	// Cauchy condition
-	y[0] = -0.5; // TODO get rid of when remaking the whole idea
 	yApproximate[0][0] = -0.5;
+
+	/// NOTE: Tanya
+	//yApproximate[0][0] = 0.0;
 
 	// function derivative
 	double *yDerivative = new double[neq];
 
 
-
+	double h = 0.028; // TODO change later
 	for (int it = 1; it <= nOutIter; it++)
 	{
 		// [Xki; Xki+1] -- intervals we iterate over [from a to b]
@@ -81,17 +79,13 @@ int main(void)
 
 		for (int ieq = 0; ieq < neq; ieq++)
 		{
-			yApproximate[it][ieq] = AdamsMoulton(neq, Xk, Xk1, h, y, yDerivative);
-			y[ieq] = yApproximate[it][ieq];
+			yApproximate[it][ieq] = AdamsMoulton(neq, Xk, Xk1, h, yApproximate[it - 1], yDerivative); // h = 0.028 works fine (unlike 0.027)
 
 			yAnalytical[it - 1][ieq] = solution(neq, Xk);
 		}
 	}
 
-
-
-
-	Output(yApproximate, yAnalytical, xk, neq, nOutIter);
+	Output(yApproximate, yAnalytical, xk, h, neq, nOutIter);
 
 	std::cin.get();
 	for (int i = 0; i < nOutIter + 1; i++)
@@ -102,16 +96,19 @@ int main(void)
 	delete[] yApproximate;
 	delete[] yAnalytical;
 	delete[] xk;
-	delete[] y;
 	delete[] yDerivative;
 
 	return 0;
 }
 
 
-void Output(double **yApproximate, double **yAnalytical, double *xk, int neq, int nOutIter)
+void Output(double **yApproximate, double **yAnalytical, double *xk, double h, int neq, int nOutIter)
 {
 	std::cout << std::setprecision(12);
+
+	// step
+	std::cout << "H = " << h << std::endl << std::endl;
+	
 	// header
 	std::cout << " Xk              ";
 	for (int ieq = 0; ieq < neq; ieq++)
@@ -145,3 +142,13 @@ void function(int neq, double x, double *y, double *yDerivative)
 {
 	yDerivative[0] = (y[0] + sqrt(pow(x, 2) + pow(y[0], 2))) / x;
 }
+
+/// NOTE: Tanya
+//void function(int neq, double xk, double *yk, double *yder)
+//{
+//	yder[0] = (exp(xk + yk[0]));
+//}
+//double solution(int neq, double x)
+//{
+//	return (-1.0*log(2 - exp(x)));
+//}

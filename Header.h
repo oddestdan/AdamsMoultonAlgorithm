@@ -1,5 +1,5 @@
 #pragma once
-double solution(int neq, double x);
-void function(int neq, double x, double *y, double *yDerivative);
-void Output(double **yApproximate, double **yAnalytical, double *xk, int neq, int nOutIter);
-double AdamsMoulton(int neq, double Xk, double Xk1, double h, double *y, double *yDerivative);
+double solution(int, double);
+void function(int, double, double*, double*);
+void Output(double**, double**, double*, double, int, int);
+double AdamsMoulton(int, double, double, double, double*, double*);
