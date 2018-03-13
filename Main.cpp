@@ -57,7 +57,7 @@ int main()
 		yAnalytical[i] = new double[neq];
 	}
 	// array to store arguments
-	double *xk = new double[outputStep + 1];
+	double *xk = new double[nOutIter + 1];
 
 	// Cauchy condition
 	yApproximate[0][0] = -0.5;
